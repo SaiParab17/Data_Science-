@@ -4,6 +4,7 @@ import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import { BarChart2, AlertTriangle, Activity, GitBranch, XCircle, ChevronRight, RefreshCw, Plus, FileText, Play } from "lucide-react";
 import { useDriftStore } from "../store/driftStore";
+import { QualityOverviewCard } from "../components/quality/QualityOverviewCard";
 import { MOCK_ALERTS, MOCK_PLATFORM_STATS, MOCK_PIPELINES } from "../data/mockData";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { MetricCard } from "../components/ui/MetricCard";
@@ -41,7 +42,8 @@ const ACTIVITY = [
 ];
 
 export default function Dashboard() {
-  const { result: driftResult } = useDriftStore();
+  const { result: driftResult, qualityResult: storeQuality, isAnalyzing, error } = useDriftStore();
+  const quality = driftResult?.quality ?? storeQuality;
   const [timeRange, setTimeRange] = useState<"24h" | "7d" | "30d">("7d");
 
   const stats = MOCK_PLATFORM_STATS;
@@ -49,6 +51,7 @@ export default function Dashboard() {
   const hasRealDrift = driftResult !== null;
   const maxPsi = driftResult?.max_psi ?? stats.maxDriftPsi;
   const activeAlerts = MOCK_ALERTS.filter(a => a.status !== "Resolved").length + (driftResult?.alerts.length ?? 0);
+  const currentQualityScore = quality ? quality.overall_score : stats.qualityScore;
 
   return (
     <div className="p-space-lg flex flex-col gap-space-lg">
@@ -200,9 +203,15 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-space-sm">
             <div>
               <p className="font-mono text-label-sm text-on-surface-variant uppercase tracking-wider">Quality Score</p>
-              <p className="font-mono text-tech-display text-on-surface">{stats.qualityScore}%</p>
+              <p className="font-mono text-tech-display text-on-surface">{currentQualityScore.toFixed(1)}%</p>
             </div>
-            <span className="badge-high">Declining</span>
+            {quality ? (
+              <span className={quality.overall_score >= 85 ? "badge-stable" : quality.overall_score >= 70 ? "badge-warning" : "badge-critical"}>
+                {quality.status}
+              </span>
+            ) : (
+              <span className="badge-high">Demo Baseline</span>
+            )}
           </div>
           <ResponsiveContainer width="100%" height={80}>
             <AreaChart data={QUALITY_TREND}>
@@ -210,7 +219,9 @@ export default function Dashboard() {
             </AreaChart>
           </ResponsiveContainer>
           <p className="font-mono text-tech-sm text-on-surface-variant mt-space-xs">
-            2 GX expectations failed · Run #1042
+            {quality
+              ? `${quality.failed_checks} failed of ${quality.total_checks} GX checks`
+              : "2 GX expectations failed · Run #1042"}
           </p>
         </div>
 
@@ -272,6 +283,13 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Real Data Pipeline Quality Observatory (Great Expectations) */}
+      <QualityOverviewCard
+        quality={quality}
+        isLoading={isAnalyzing}
+        error={error}
+      />
 
       {/* Bottom: Alert queue + Activity feed */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-space-md">

@@ -10,8 +10,12 @@ import pandas as pd
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 
+import json
 from services.drift_engine import DriftEngine
+from services.gx_validation_service import GXValidationService
+from services.quality_scoring_service import QualityScoringService
 from models.drift_models import DriftResult, DriftAlert
+from api.quality import set_latest_quality_result
 
 router = APIRouter(prefix="/api", tags=["drift"])
 
@@ -44,13 +48,16 @@ async def analyze_drift(
     current_file: UploadFile = File(..., description="Current batch CSV dataset"),
     psi_threshold: float = Form(default=0.25, description="PSI threshold for drift detection"),
     dataset_name: str = Form(default="Telco Customer Churn", description="Dataset display name"),
+    run_quality: bool = Form(default=True, description="Run GX data quality validation alongside drift analysis"),
+    quality_weights_json: Optional[str] = Form(default=None, description="Optional JSON string of dimension weights"),
 ):
     """
     Analyze statistical distribution drift between reference and current datasets.
+    Optionally executes Great Expectations quality validation and deterministic scoring.
     
     Calculates PSI, KS test, Wasserstein distance, and Jensen-Shannon divergence
     for each column. Returns feature-level and overall drift results, plus
-    generated alerts for any threshold breaches.
+    generated alerts and optional data quality scoring.
     """
     global _latest_result
 
@@ -82,6 +89,26 @@ async def analyze_drift(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Drift analysis failed: {str(e)}")
 
+    # Optionally run Great Expectations quality validation & scoring
+    if run_quality:
+        try:
+            weights = None
+            if quality_weights_json:
+                try:
+                    weights = json.loads(quality_weights_json)
+                except Exception:
+                    pass
+
+            gx_service = GXValidationService()
+            checks = gx_service.validate(current_df=current_df, reference_df=reference_df)
+            scoring_service = QualityScoringService(weights=weights)
+            quality_result = scoring_service.calculate_score(checks, dataset_name=dataset_name)
+            result.quality = quality_result
+            set_latest_quality_result(quality_result)
+        except Exception as e:
+            # Don't break drift analysis if quality validation encounters an error
+            print(f"Quality validation warning: {e}")
+
     # Cache for dashboard/alerts consumption
     _latest_result = result
 
@@ -107,8 +134,10 @@ async def health_check():
     """Backend health check."""
     return {
         "status": "ok",
-        "service": "DataWatch Drift Engine",
+        "service": "DataWatch Monitoring Engine",
         "version": "1.0.0",
         "drift_analysis_ready": True,
+        "quality_validation_ready": True,
         "latest_result_available": _latest_result is not None,
+        "latest_quality_available": _latest_result is not None and _latest_result.quality is not None,
     }

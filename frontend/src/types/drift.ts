@@ -49,6 +49,8 @@ export interface DriftAlert {
   run_id: string;
 }
 
+import type { DataQualityResult } from "./quality";
+
 export interface DriftResult {
   dataset_name: string;
   reference_rows: number;
@@ -63,6 +65,7 @@ export interface DriftResult {
   features: FeatureDriftResult[];
   alerts: DriftAlert[];
   analysis_timestamp: string;
+  quality?: DataQualityResult;
 }
 
 export interface DriftAnalysisRequest {
@@ -70,4 +73,5 @@ export interface DriftAnalysisRequest {
   currentFile: File;
   psiThreshold?: number;
   datasetName?: string;
+  runQuality?: boolean;
 }

@@ -11,6 +11,7 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { DriftSummary } from "../components/drift/DriftSummary";
 import { DriftTable } from "../components/drift/DriftTable";
 import { FeatureDrawer } from "../components/drift/FeatureDrawer";
+import { QualityOverviewCard } from "../components/quality/QualityOverviewCard";
 import type { FeatureDriftResult } from "../types/drift";
 
 const TABS = [
@@ -145,6 +146,17 @@ function ProfileTab() {
 
 // ─── Sub-Tab: Quality (GX) ───────────────────────────────────────────────────
 function QualityTab() {
+  const { result, qualityResult: storeQuality } = useDriftStore();
+  const quality = result?.quality ?? storeQuality;
+
+  if (quality) {
+    return (
+      <div className="flex flex-col gap-space-md">
+        <QualityOverviewCard quality={quality} showDetailsButton={false} />
+      </div>
+    );
+  }
+
   const passed = MOCK_EXPECTATIONS.filter(e => e.status === "passed").length;
   const failed = MOCK_EXPECTATIONS.filter(e => e.status === "failed").length;
   const warning = MOCK_EXPECTATIONS.filter(e => e.status === "warning").length;
@@ -153,6 +165,16 @@ function QualityTab() {
 
   return (
     <div className="flex flex-col gap-space-md">
+      {/* Demo Banner */}
+      <div className="p-space-sm bg-primary-fixed/20 border border-primary-container/30 rounded-xl flex items-center justify-between flex-wrap gap-space-sm">
+        <div className="flex items-center gap-space-sm">
+          <span className="badge-info">DEMO BASELINE</span>
+          <p className="font-mono text-tech-sm text-on-surface">
+            Displaying baseline expectation suite. Run an analysis in the <strong>Drift</strong> tab to compute real Great Expectations validation scores on uploaded data.
+          </p>
+        </div>
+      </div>
+
       {/* Summary */}
       <div className="grid grid-cols-4 gap-space-sm">
         {[
@@ -443,6 +465,9 @@ function DriftTab() {
           animate={{ opacity: 1, y: 0 }}
         >
           <DriftSummary />
+          {result.quality && (
+            <QualityOverviewCard quality={result.quality} showDetailsButton={false} />
+          )}
           <DriftTable features={result.features} onRowClick={handleRowClick} psiThreshold={result.psi_threshold} />
         </motion.div>
       )}

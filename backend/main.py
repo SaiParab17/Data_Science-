@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.drift import router as drift_router
+from api.quality import router as quality_router
 
 app = FastAPI(
     title="DataWatch API",
@@ -28,6 +29,7 @@ app.add_middleware(
 
 # ─── Routers ──────────────────────────────────────────────────────────────────
 app.include_router(drift_router)
+app.include_router(quality_router)
 
 
 @app.get("/")
@@ -39,6 +41,8 @@ async def root():
         "endpoints": [
             "POST /api/drift/analyze",
             "GET  /api/drift/latest",
+            "POST /api/quality/validate",
+            "GET  /api/quality/latest",
             "GET  /api/alerts",
             "GET  /api/health",
         ],

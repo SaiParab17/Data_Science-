@@ -64,6 +64,9 @@ class DriftAlert(BaseModel):
     run_id: str = "#1042"
 
 
+from models.quality_models import DataQualityResult
+
+
 class DriftResult(BaseModel):
     dataset_name: str
     reference_rows: int
@@ -78,6 +81,7 @@ class DriftResult(BaseModel):
     features: List[FeatureDriftResult]
     alerts: List[DriftAlert]
     analysis_timestamp: str
+    quality: Optional[DataQualityResult] = None
 
 
 class DriftAnalysisError(BaseModel):
